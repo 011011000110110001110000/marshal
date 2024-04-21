@@ -16,18 +16,18 @@
 
 package overrun.marshal;
 
+import org.glavo.classfile.ClassFile;
+import org.glavo.classfile.CodeBuilder;
+import org.glavo.classfile.Opcode;
+import org.glavo.classfile.TypeKind;
 import overrun.marshal.gen.Type;
 import overrun.marshal.gen.*;
-import overrun.marshal.internal.data.DowncallData;
 import overrun.marshal.internal.DowncallOptions;
+import overrun.marshal.internal.data.DowncallData;
 import overrun.marshal.struct.ByValue;
 import overrun.marshal.struct.Struct;
 
 import java.lang.annotation.Annotation;
-import java.lang.classfile.ClassFile;
-import java.lang.classfile.CodeBuilder;
-import java.lang.classfile.Opcode;
-import java.lang.classfile.TypeKind;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.DynamicConstantDesc;
 import java.lang.constant.MethodTypeDesc;
@@ -43,8 +43,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static java.lang.classfile.ClassFile.*;
 import static java.lang.constant.ConstantDescs.*;
+import static org.glavo.classfile.ClassFile.*;
 
 /**
  * Downcall library loader.
@@ -264,7 +264,7 @@ public final class Downcall {
 
     private static boolean requireAllocator(Class<?> aClass) {
         return !aClass.isPrimitive() &&
-               (aClass == String.class ||
+            (aClass == String.class ||
                 aClass.isArray() ||
                 Upcall.class.isAssignableFrom(aClass));
     }
@@ -284,12 +284,12 @@ public final class Downcall {
         final String upperCase = charset.toUpperCase(Locale.ROOT);
         switch (upperCase) {
             case "UTF-8", "ISO-8859-1", "US-ASCII",
-                "UTF-16", "UTF-16BE", "UTF-16LE",
-                "UTF-32", "UTF-32BE", "UTF-32LE" ->
+                 "UTF-16", "UTF-16BE", "UTF-16LE",
+                 "UTF-32", "UTF-32BE", "UTF-32LE" ->
                 codeBuilder.getstatic(CD_StandardCharsets, upperCase.replace('-', '_'), CD_Charset);
             case "UTF_8", "ISO_8859_1", "US_ASCII",
-                "UTF_16", "UTF_16BE", "UTF_16LE",
-                "UTF_32", "UTF_32BE", "UTF_32LE" -> codeBuilder.getstatic(CD_StandardCharsets, upperCase, CD_Charset);
+                 "UTF_16", "UTF_16BE", "UTF_16LE",
+                 "UTF_32", "UTF_32BE", "UTF_32LE" -> codeBuilder.getstatic(CD_StandardCharsets, upperCase, CD_Charset);
             default -> codeBuilder.ldc(charset)
                 .invokestatic(CD_Charset, "forName", MTD_Charset_String);
         }
@@ -335,16 +335,15 @@ public final class Downcall {
             .filter(method -> method.getDeclaredAnnotation(annotation) != null)
             .filter(predicate)
             .findFirst()
-            .orElseThrow(() -> new IllegalStateException(STR.
-                "Couldn't find wrapper method in \{aClass}; mark it with @\{annotation.getSimpleName()}"));
+            .orElseThrow(() -> new IllegalStateException(String.format("Couldn't find wrapper method in %s; mark it with %s", aClass, annotation.getSimpleName())));
     }
 
     private static Method findCEnumWrapper(Class<?> aClass) {
         return findWrapper(aClass, CEnum.Wrapper.class, method -> {
             final var types = method.getParameterTypes();
             return types.length == 1 &&
-                   types[0] == int.class &&
-                   CEnum.class.isAssignableFrom(method.getReturnType());
+                types[0] == int.class &&
+                CEnum.class.isAssignableFrom(method.getReturnType());
         });
     }
 
@@ -391,7 +390,7 @@ public final class Downcall {
             final AtomicInteger handleCount = new AtomicInteger();
             methodList.forEach(method -> {
                 final String entrypoint = getMethodEntrypoint(method);
-                final String handleName = STR."$mh\{handleCount.getAndIncrement()}";
+                final String handleName = String.format("$mh%s", handleCount.getAndIncrement());
                 final var parameters = List.of(method.getParameters());
 
                 final DowncallMethodData methodData = new DowncallMethodData(
@@ -400,8 +399,8 @@ public final class Downcall {
                     exceptionStringMap.get(method),
                     parameters,
                     method.getDeclaredAnnotation(ByValue.class) == null &&
-                    !parameters.isEmpty() &&
-                    SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType())
+                        !parameters.isEmpty() &&
+                        SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType())
                 );
                 methodDataMap.put(method, methodData);
 
@@ -441,11 +440,11 @@ public final class Downcall {
                 final Consumer<CodeBuilder> wrapping = returnType == MethodHandle.class ? null : codeBuilder -> {
                     final boolean hasAllocator =
                         !parameters.isEmpty() &&
-                        SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType());
+                            SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType());
                     final boolean shouldAddStack =
                         !parameters.isEmpty() &&
-                        !SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType()) &&
-                        parameters.stream().anyMatch(parameter -> requireAllocator(parameter.getType()));
+                            !SegmentAllocator.class.isAssignableFrom(parameters.getFirst().getType()) &&
+                            parameters.stream().anyMatch(parameter -> requireAllocator(parameter.getType()));
                     final int stackSlot;
                     final int stackPointerSlot;
                     final int allocatorSlot;
@@ -550,8 +549,8 @@ public final class Downcall {
                                             marshalFromBooleanMethod(convertType),
                                             MethodTypeDesc.of(convertType.classDesc(), CD_boolean));
                                     } else if (type.isPrimitive() ||
-                                               type == MemorySegment.class ||
-                                               SegmentAllocator.class.isAssignableFrom(type)) {
+                                        type == MemorySegment.class ||
+                                        SegmentAllocator.class.isAssignableFrom(type)) {
                                         blockCodeBuilder.loadInstruction(
                                             TypeKind.fromDescriptor(type.descriptorString()).asLoadable(),
                                             slot
@@ -569,7 +568,7 @@ public final class Downcall {
                                                 MTD_MemorySegment_SegmentAllocator_String);
                                         }
                                     } else if (Addressable.class.isAssignableFrom(type) ||
-                                               CEnum.class.isAssignableFrom(type)) {
+                                        CEnum.class.isAssignableFrom(type)) {
                                         blockCodeBuilder.aload(slot)
                                             .invokestatic(CD_Marshal,
                                                 "marshal",
@@ -852,9 +851,9 @@ public final class Downcall {
         final Class<?> returnType = method.getReturnType();
         final boolean b =
             method.getDeclaredAnnotation(Skip.class) != null ||
-            Modifier.isStatic(method.getModifiers()) ||
-            method.isSynthetic() ||
-            Modifier.isFinal(method.getModifiers());
+                Modifier.isStatic(method.getModifiers()) ||
+                method.isSynthetic() ||
+                Modifier.isFinal(method.getModifiers());
         if (b) {
             return true;
         }
@@ -878,8 +877,8 @@ public final class Downcall {
             }
         } else if (
             returnType == boolean.class && length == 1 && types[0] == Object.class && "equals".equals(methodName) ||
-            returnType == void.class && length == 1 && types[0] == long.class && "wait".equals(methodName) ||
-            returnType == void.class && length == 2 && types[0] == long.class && types[1] == long.class && "wait".equals(methodName)
+                returnType == void.class && length == 1 && types[0] == long.class && "wait".equals(methodName) ||
+                returnType == void.class && length == 2 && types[0] == long.class && types[1] == long.class && "wait".equals(methodName)
         ) {
             return true;
         }
@@ -897,11 +896,7 @@ public final class Downcall {
     }
 
     private static String createExceptionString(Method method) {
-        return STR."""
-            \{method.getReturnType().getCanonicalName()} \
-            \{method.getDeclaringClass().getCanonicalName()}.\{method.getName()}\
-            \{Arrays.stream(method.getParameterTypes()).map(Class::getCanonicalName)
-            .collect(Collectors.joining(", ", "(", ")"))}""";
+        return String.format("%s %s.%s %s", method.getReturnType().getCanonicalName(), method.getDeclaringClass().getCanonicalName(), method.getName(), Arrays.stream(method.getParameterTypes()).map(Class::getCanonicalName).collect(Collectors.joining(", ", "(", ")")));
     }
 
     private static void verifyMethods(List<Method> list, Map<Method, String> exceptionStringMap) {
@@ -918,8 +913,7 @@ public final class Downcall {
                     }
                 }
                 if (!foundConstructor) {
-                    throw new IllegalStateException(STR.
-                        "The struct \{returnType} must contain a constructor that only accept one memory segment: \{exceptionStringMap.get(method)}");
+                    throw new IllegalStateException(String.format("The struct %s must contain a constructor that only accepts one memory segment: %s", returnType, exceptionStringMap.get(method)));
                 }
 
                 boolean foundLayout = false;
@@ -930,10 +924,10 @@ public final class Downcall {
                     }
                 }
                 if (!foundLayout) {
-                    throw new IllegalStateException(STR."The struct \{returnType} must contain one public static field that is StructLayout");
+                    throw new IllegalStateException(String.format("The struct %s must contain one public static field that is StructLayout", returnType));
                 }
             } else if (!isValidReturnType(returnType)) {
-                throw new IllegalStateException(STR."Invalid return type: \{exceptionStringMap.get(method)}");
+                throw new IllegalStateException(String.format("Invalid return type: %s", exceptionStringMap.get(method)));
             }
 
             // check method parameter
@@ -942,9 +936,9 @@ public final class Downcall {
             for (Parameter parameter : method.getParameters()) {
                 final Class<?> type = parameter.getType();
                 if (Upcall.class.isAssignableFrom(type) && !isFirstArena) {
-                    throw new IllegalStateException(STR."The first parameter of method \{method} is not an arena; however, the parameter \{parameter} is an upcall");
+                    throw new IllegalStateException(String.format("The first parameter of method %s is not an arena; however, the parameter %s is an upcall", method, parameter));
                 } else if (!isValidParamType(type)) {
-                    throw new IllegalStateException(STR."Invalid parameter: \{parameter} in \{method}");
+                    throw new IllegalStateException(String.format("Invalid parameter: %s in %s", parameter, method));
                 }
             }
         });
@@ -954,40 +948,40 @@ public final class Downcall {
         if (!aClass.isArray()) return false;
         final Class<?> type = aClass.getComponentType();
         return type.isPrimitive() ||
-               type == MemorySegment.class ||
-               type == String.class ||
-               Addressable.class.isAssignableFrom(type) ||
-               Upcall.class.isAssignableFrom(type) ||
-               CEnum.class.isAssignableFrom(type);
+            type == MemorySegment.class ||
+            type == String.class ||
+            Addressable.class.isAssignableFrom(type) ||
+            Upcall.class.isAssignableFrom(type) ||
+            CEnum.class.isAssignableFrom(type);
     }
 
     private static boolean isValidReturnArrayType(Class<?> aClass) {
         if (!aClass.isArray()) return false;
         final Class<?> type = aClass.getComponentType();
         return type.isPrimitive() ||
-               type == MemorySegment.class ||
-               type == String.class;
+            type == MemorySegment.class ||
+            type == String.class;
     }
 
     private static boolean isValidParamType(Class<?> aClass) {
         return aClass.isPrimitive() ||
-               aClass == MemorySegment.class ||
-               aClass == String.class ||
-               SegmentAllocator.class.isAssignableFrom(aClass) ||
-               Addressable.class.isAssignableFrom(aClass) ||
-               Upcall.class.isAssignableFrom(aClass) ||
-               CEnum.class.isAssignableFrom(aClass) ||
-               isValidParamArrayType(aClass);
+            aClass == MemorySegment.class ||
+            aClass == String.class ||
+            SegmentAllocator.class.isAssignableFrom(aClass) ||
+            Addressable.class.isAssignableFrom(aClass) ||
+            Upcall.class.isAssignableFrom(aClass) ||
+            CEnum.class.isAssignableFrom(aClass) ||
+            isValidParamArrayType(aClass);
     }
 
     private static boolean isValidReturnType(Class<?> aClass) {
         return aClass.isPrimitive() ||
-               aClass == MemorySegment.class ||
-               aClass == String.class ||
-               Struct.class.isAssignableFrom(aClass) ||
-               CEnum.class.isAssignableFrom(aClass) ||
-               isValidReturnArrayType(aClass) ||
-               aClass == MethodHandle.class;
+            aClass == MemorySegment.class ||
+            aClass == String.class ||
+            Struct.class.isAssignableFrom(aClass) ||
+            CEnum.class.isAssignableFrom(aClass) ||
+            isValidReturnArrayType(aClass) ||
+            aClass == MethodHandle.class;
     }
 
     private static DowncallData generateData(Map<Method, DowncallMethodData> methodDataMap, SymbolLookup lookup, Map<String, FunctionDescriptor> descriptorMap) {
@@ -1105,7 +1099,7 @@ public final class Downcall {
             } else if (method.isDefault()) {
                 map.putIfAbsent(entrypoint, null);
             } else {
-                throw new UnsatisfiedLinkError(STR."unresolved symbol: \{entrypoint} (\{descriptor}): \{methodData.exceptionString()}");
+                throw new UnsatisfiedLinkError(String.format("Unresolved symbol: %s (%s): %s", entrypoint, descriptor, methodData.exceptionString()));
             }
         });
         return new DowncallData(Collections.unmodifiableMap(descriptorMap1), Collections.unmodifiableMap(map), lookup);

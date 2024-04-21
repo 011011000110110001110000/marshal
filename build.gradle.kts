@@ -30,6 +30,8 @@ val jdkEarlyAccessDoc: String? by rootProject
 
 val targetJavaVersion = jdkVersion.toInt()
 
+val classfileApiVersion: String by rootProject
+
 val projDevelopers = arrayOf(
     Developer("squid233")
 )
@@ -87,6 +89,7 @@ allprojects {
 
     dependencies {
         // add your dependencies
+        implementation("org.glavo:classfile:${classfileApiVersion}")
         compileOnly("org.jetbrains:annotations:24.1.0")
         testImplementation(platform("org.junit:junit-bom:5.10.2"))
         testImplementation("org.junit.jupiter:junit-jupiter")
